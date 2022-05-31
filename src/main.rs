@@ -1,7 +1,7 @@
 use std::io::{stdin, stdout, Read, Write};
 use std::path::{Path, PathBuf};
 
-use pandoc_ast::{MetaValue, Pandoc};
+use pandoc_ast::{Block, MetaValue, MutVisitor, Pandoc};
 
 fn replace_includes_in_lines(lines: &mut dyn Iterator<Item = &str>, entry_dir: &Path) -> String {
     let mut output = String::new();
@@ -62,23 +62,31 @@ fn replace_includes(input: &str, entry_dir: &Path) -> String {
     replace_includes_in_lines(&mut input.lines(), &entry_dir)
 }
 
+struct MyVisitor<'a> {
+    entry_dir: &'a Path,
+}
+
+impl<'a> MutVisitor for MyVisitor<'a> {
+    fn visit_block(&mut self, block: &mut Block) {
+        if let Block::CodeBlock(ref attr, ref content) = block {
+            // replace include in content
+            *block = Block::CodeBlock(attr.clone(), replace_includes(content, &self.entry_dir))
+        }
+        self.walk_block(block);
+    }
+}
+
 fn include_filter(mut pandoc: Pandoc) -> Pandoc {
     let mut entry_dir = PathBuf::from(".");
     if let Some(MetaValue::MetaString(entry)) = pandoc.meta.get("include-entry") {
         entry_dir = PathBuf::from(entry);
     }
 
-    for block in &mut pandoc.blocks {
-        use pandoc_ast::Block::*;
+    let mut visitor = MyVisitor {
+        entry_dir: &entry_dir,
+    };
 
-        match block {
-            CodeBlock(ref attr, ref content) => {
-                // replace include in content
-                *block = CodeBlock(attr.clone(), replace_includes(content, &entry_dir))
-            }
-            _ => {}
-        }
-    }
+    visitor.walk_pandoc(&mut pandoc);
 
     pandoc
 }
@@ -86,8 +94,6 @@ fn include_filter(mut pandoc: Pandoc) -> Pandoc {
 fn main() {
     let mut json = String::new();
     stdin().read_to_string(&mut json).unwrap();
-
-    let res = pandoc_ast::filter(json, include_filter);
-
+    let res = pandoc_ast::filter(json.clone(), include_filter);
     stdout().write(res.as_bytes()).unwrap();
 }
