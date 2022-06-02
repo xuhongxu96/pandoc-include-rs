@@ -17,9 +17,9 @@ dependencies = [
 
 [[package]]
 name = "pandoc_ast"
-version = "0.8.0"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a940e63c65b34a7be2f847de6847b4bc9b68d74e3f7a5c648ca2fa5317f3bd06"
+checksum = "b3f66e753ae68f272480f3eaedf07798d758cdfab3903724c119a827a0e5536e"
 dependencies = [
  "serde",
  "serde_derive",
